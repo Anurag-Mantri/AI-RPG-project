@@ -12,7 +12,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True)
+    username = Column(String, unique=True, index=True)
     hashed_password = Column(String) # For later: Auth
 
 # Define the Scenario model
@@ -36,6 +36,7 @@ class Adventure(Base):
     current_stats = Column(JSON) # {hp: 20, str: 10...}
     history = Column(JSON) # The chat logs
     last_played = Column(String)
+    stats = Column(JSON) # To store character stats like HP, Strength, etc.
 
 # Define the Character model
 class Character(Base):

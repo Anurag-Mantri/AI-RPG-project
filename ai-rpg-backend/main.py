@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from database import SessionLocal, Character
+from database import SessionLocal, Character, User, Scenario, Adventure
+from auth import hash_password, verify_password, create_access_token
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,6 +34,10 @@ class GameState(BaseModel):
     user_input: str
     history: List[ChatMessage] = []
 
+class UserAuth(BaseModel):
+    username: str
+    password: str
+
 def get_db():
     db = SessionLocal()
     try:
@@ -43,6 +48,28 @@ def get_db():
 # Helper to calculate D&D style modifiers: (Stat - 10) / 2
 def get_modifier(score):
     return (score - 10) // 2
+
+@app.post("/register")
+def register(user: UserAuth):
+    db = SessionLocal()
+    existing = db.query(User).filter(User.username == user.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username taken")
+    
+    new_user = User(username=user.username, hashed_password=hash_password(user.password))
+    db.add(new_user)
+    db.commit()
+    return {"message": "User created"}
+
+@app.post("/login")
+def login(user: UserAuth):
+    db = SessionLocal()
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_access_token(data={"sub": db_user.username, "id": db_user.id})
+    return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/play")
 async def play_turn(state: GameState):
