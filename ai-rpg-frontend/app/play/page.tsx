@@ -20,25 +20,42 @@ export default function Game() {
   const [story, setStory] = useState<Message[]>([]);
 
   const handleAction = async () => {
-    if (!input) return;
-    setLoading(true);
+  if (!input) return;
+  setLoading(true);
 
-    // Format the history for the backend
-    // We only send the text and the role ("user" or "model")
-    const chatHistory = story.map((msg:Message) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      text: msg.text
-    }));
+  // 1. Map history to exactly what ChatMessage expects
+  const chatHistory = story.map((msg) => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    text: msg.text
+  }));
 
-    try {
-      const response = await fetch("http://localhost:8000/play", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_input: input,
-          history: chatHistory 
-        }),
-      });
+  try {
+    const response = await fetch("http://localhost:8000/play", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_input: input,
+        history: chatHistory,
+        // 2. Explicitly map stats to the backend's naming
+        stats: {
+          hp: stats.hp,
+          strength: stats.str,     // Backend expects 'strength'
+          dexterity: stats.dex,    // Backend expects 'dexterity'
+          intelligence: stats.int, // Backend expects 'intelligence'
+          level: 1
+        },
+        // 3. Ensure these are either valid strings or null
+        adventure_id: null, 
+        user_id: null,
+        guest_id: "guest_123" 
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Server Error Detail:", errorData.detail);
+      return;
+    }
 
       const data = await response.json();
       
@@ -88,7 +105,7 @@ export default function Game() {
 
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] w-full bg-slate-950 text-slate-100 overflow-hidden">
       
       {/* LEFT SIDEBAR: Character Sheet */}
       <aside className="w-72 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-6 shadow-xl">
@@ -121,7 +138,7 @@ export default function Game() {
       </aside>
 
       {/* MAIN CONTENT: Chat Area */}
-      <main className="flex-1 flex flex-col relative bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
         
         {/* Header */}
         <header className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md flex items-center px-8 justify-between">
